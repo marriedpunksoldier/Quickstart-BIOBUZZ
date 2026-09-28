@@ -55,9 +55,12 @@ public class TurretSubsystem {
     private boolean lockedOn = false;
     private double lastKnownTx = 0.0;
 
+    /**
+     * Does not move the servo: commanding it here would move the turret during
+     * INIT, which G403/G304 forbid. Call {@link #center()} from start().
+     */
     public TurretSubsystem(HardwareMap hardwareMap) {
         servo = hardwareMap.get(Servo.class, "turretGear");
-        servo.setPosition(TURRET_CENTER);
     }
 
     /**

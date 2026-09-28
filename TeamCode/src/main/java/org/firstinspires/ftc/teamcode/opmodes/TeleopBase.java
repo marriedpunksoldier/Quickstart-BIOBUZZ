@@ -7,16 +7,23 @@ import com.pedropathing.math.Pose;
 import org.firstinspires.ftc.teamcode.config.Alliance;
 import org.firstinspires.ftc.teamcode.robot.RobotOpMode;
 import org.firstinspires.ftc.teamcode.subsystems.DriveUtils;
+import org.firstinspires.ftc.teamcode.subsystems.LimelightSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.TurretSubsystem;
+
+import java.util.Locale;
 
 /**
- * Drive-only TeleOp shared by both alliances; each alliance is a thin
- * subclass. Add mechanism controls here once BIOBUZZ subsystems exist.
+ * TeleOp shared by both alliances; each alliance is a thin subclass.
  * <p>
  * gamepad1: left stick translates (field-centric), right stick X rotates.
  * "Field" forward is the direction the robot faced at INIT, since the start
  * pose is (0, 0, 0) until auto hands its final pose over.
  * <p>
- * Releasing the sticks holds the current pose rather than coasting, which
+ * gamepad2: right stick X nudges the turret by hand. Otherwise the turret
+ * auto-aims at our HIVE's upward CELL whenever the Limelight sees its tags,
+ * and holds still when it doesn't.
+ * <p>
+ * Releasing the drive sticks holds the current pose rather than coasting, which
  * matters in BIOBUZZ: TELEOP has no protected zones and the manual calls the
  * game "highly interactive". Telemetry shows HOLD or MANUAL so the drivers can
  * see which is active.
@@ -39,6 +46,12 @@ public abstract class TeleopBase extends RobotOpMode {
      */
     private static final double HOLD_INPUT_THRESHOLD = 0.0;
 
+    /** Servo units per loop at full gamepad2 stick: ~1.1 deg of turret, ~55 deg/s at 50 Hz. */
+    private static final double MANUAL_TURRET_STEP = 0.01;
+
+    protected LimelightSubsystem limelight;
+    protected TurretSubsystem turret;
+
     protected TeleopBase(Alliance alliance) {
         super(alliance);
     }
@@ -46,9 +59,13 @@ public abstract class TeleopBase extends RobotOpMode {
     @Override
     public void init() {
         initSubsystems();
+        limelight = new LimelightSubsystem(hardwareMap, alliance);
+        turret = new TurretSubsystem(hardwareMap);
         follower.setPose(startingPose());
-        // No drive commands in INIT: G403 forbids powered movement before TELEOP.
+        // Nothing moves in INIT: G403 forbids powered movement before TELEOP.
         telemetry.addData("Alliance", alliance);
+        telemetry.addData("Limelight", limelight.isConnected()
+                ? "OK" : "NOT FOUND (" + limelight.getInitError() + ") - driving still works");
         telemetry.update();
     }
 
@@ -58,7 +75,15 @@ public abstract class TeleopBase extends RobotOpMode {
     }
 
     @Override
+    public void start() {
+        turret.center();   // first servo command, deliberately not in init()
+    }
+
+    @Override
     public void loop() {
+        limelight.update();
+        aimTurret();
+
         // driveOrHold latches the current pose when the sticks are released and
         // the robot has stopped, so defenders can't shove us off our spot. It
         // sets Mode.HOLD once, not every loop, and any stick input resumes
@@ -70,7 +95,22 @@ public abstract class TeleopBase extends RobotOpMode {
         telemetry.addData("Alliance", alliance);
         telemetry.addData("Pose", follower.pose());
         telemetry.addData("Mode", follower.holding() ? "HOLD" : "MANUAL");
+        telemetry.addData("Target CELL tags", limelight.getTargetTags());
+        telemetry.addData("tx", String.format(Locale.US, "%.1f deg", limelight.getTxDegrees()));
+        telemetry.addData("Turret", String.format(Locale.US, "%.1f deg %s",
+                turret.getAngleDeg(), turret.isLockedOn() ? "LOCKED" : ""));
         telemetry.update();
+    }
+
+    /** Driver override on gamepad2 right stick X; auto-aim otherwise. */
+    private void aimTurret() {
+        double manual = DriveUtils.applyDeadzone(gamepad2.right_stick_x);
+        if (manual != 0) {
+            // Stick right turns the turret the same way as positive tx (right of center).
+            turret.setPosition(turret.getPosition() - manual * MANUAL_TURRET_STEP);
+        } else {
+            turret.aimAtTarget(limelight.getTxDegrees(), limelight.hasTarget());
+        }
     }
 
     private DrivePowers drivePowers() {
