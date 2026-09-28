@@ -34,4 +34,27 @@ public class DriveUtilsTest {
         assertEquals(0.25, DriveUtils.squareCurve(0.5), EPS);
         assertEquals(-0.25, DriveUtils.squareCurve(-0.5), EPS);
     }
+
+    /**
+     * TeleopBase passes driveOrHold an input threshold of exactly 0, which is
+     * only safe because conditioning is exactly 0 at rest and non-zero as soon
+     * as the stick clears the deadzone. If that stops holding, TeleOp either
+     * never latches its pose or ignores slow creeps.
+     */
+    @Test
+    public void conditionedStickIsExactlyZeroAtRestAndNonZeroOnceOutsideDeadzone() {
+        assertEquals(0, condition(0), 0);
+        assertEquals(0, condition(DriveUtils.DEFAULT_DEADBAND), 0);
+
+        // A 20% creep is far below Pedro's stock 0.1 threshold but must still read as input.
+        assertTrue(condition(0.20) > 0);
+        assertTrue(condition(0.20) < 0.1);
+        assertTrue(condition(-0.20) < 0);
+    }
+
+    /** Mirrors TeleopBase.drivePowers(): radial deadzone, then square curve. */
+    private static double condition(double rawStick) {
+        double[] xy = DriveUtils.applyRadialDeadzone(rawStick, 0, DriveUtils.DEFAULT_DEADBAND);
+        return DriveUtils.squareCurve(xy[0]);
+    }
 }
