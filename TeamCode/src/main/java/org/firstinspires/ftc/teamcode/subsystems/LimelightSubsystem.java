@@ -92,9 +92,10 @@ public class LimelightSubsystem {
      * or null if none of our tags are visible. Other tags (the opponent HIVE)
      * are ignored.
      */
-    // ponytail: mean tx of the visible tags approximates the cluster centre; with only
-    // 1-2 tags in view it is off by up to half the cluster width. Use the tag poses
-    // (or SDK 12 cluster detection) if aiming lands consistently to one side.
+    // ponytail: mean tx of the visible tags approximates the cluster centre. Tags sit
+    // at about -6.5, -2.75, +2.75, +6.5 in from centre (setup guide p.18), so one outer
+    // pair alone is 4.6 in off and a lone outer tag 6.5 in (CELL opening is 20 in wide).
+    // If shots land to one side, fit tx against those per-ID offsets instead.
     static double[] aim(int[] ids, double[] tx, double[] ty, int firstTagId) {
         double[] sumTx = new double[2];
         double[] sumTy = new double[2];
