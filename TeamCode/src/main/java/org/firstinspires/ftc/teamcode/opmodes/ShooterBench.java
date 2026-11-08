@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
+import org.firstinspires.ftc.teamcode.subsystems.Shooter;
 
 /**
  * Bench test for the flywheel: one motor vs two (Shooter Bench Test Sheet).
@@ -24,8 +25,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 @TeleOp(name = "Shooter Bench", group = "Test")
 public class ShooterBench extends OpMode {
 
-    /** goBILDA spec: 28 counts per rev at the output shaft (no gearbox). */
-    static final double COUNTS_PER_REV = 28.0;
+    static final double COUNTS_PER_REV = Shooter.COUNTS_PER_REV;
     /** goBILDA's tested free speed at 12 V. */
     static final double MAX_RPM = 5800.0;
     static final double DEFAULT_RPM = 3000.0;
@@ -36,11 +36,11 @@ public class ShooterBench extends OpMode {
 
     /**
      * The motors face each other across the shaft, so one must turn the other
-     * way. If telemetry shows a direction fault, flip this. If balls come out
-     * backwards, flip LEFT_DIRECTION and this together.
+     * way. If telemetry shows a direction fault, flip RIGHT_DIRECTION in
+     * {@link Shooter}. If balls come out backwards, flip both there.
      */
-    static final DcMotorSimple.Direction LEFT_DIRECTION = DcMotorSimple.Direction.FORWARD;
-    static final DcMotorSimple.Direction RIGHT_DIRECTION = DcMotorSimple.Direction.REVERSE;
+    static final DcMotorSimple.Direction LEFT_DIRECTION = Shooter.LEFT_DIRECTION;
+    static final DcMotorSimple.Direction RIGHT_DIRECTION = Shooter.RIGHT_DIRECTION;
 
     private DcMotorEx left;
     private DcMotorEx right;
