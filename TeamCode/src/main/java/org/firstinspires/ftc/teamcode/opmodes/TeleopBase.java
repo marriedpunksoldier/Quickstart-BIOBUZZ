@@ -7,6 +7,7 @@ import com.pedropathing.math.Pose;
 import org.firstinspires.ftc.teamcode.config.Alliance;
 import org.firstinspires.ftc.teamcode.robot.RobotOpMode;
 import org.firstinspires.ftc.teamcode.subsystems.DriveUtils;
+import org.firstinspires.ftc.teamcode.subsystems.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.LimelightSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.TurretSubsystem;
 
@@ -19,7 +20,9 @@ import java.util.Locale;
  * "Field" forward is the direction the robot faced at INIT, since the start
  * pose is (0, 0, 0) until auto hands its final pose over.
  * <p>
- * gamepad2: right stick X nudges the turret by hand. Otherwise the turret
+ * gamepad1: right trigger intakes (stops at 4 balls, reverses out of jams), left trigger spits out.
+ * <p>
+ * gamepad2: dpad up/down corrects the ball count. Right stick X nudges the turret by hand. Otherwise the turret
  * auto-aims at our HIVE's upward CELL whenever the Limelight sees its tags,
  * and holds still when it doesn't.
  * <p>
@@ -49,8 +52,13 @@ public abstract class TeleopBase extends RobotOpMode {
     /** Servo units per loop at full gamepad2 stick: ~1.1 deg of turret, ~55 deg/s at 50 Hz. */
     private static final double MANUAL_TURRET_STEP = 0.01;
 
+    /** Trigger pull that counts as pressed. */
+    private static final double TRIGGER_ON = 0.5;
+
     protected LimelightSubsystem limelight;
     protected TurretSubsystem turret;
+    protected Intake intake;
+    private boolean lastUp, lastDown;
 
     protected TeleopBase(Alliance alliance) {
         super(alliance);
@@ -61,6 +69,7 @@ public abstract class TeleopBase extends RobotOpMode {
         initSubsystems();
         limelight = new LimelightSubsystem(hardwareMap, alliance);
         turret = new TurretSubsystem(hardwareMap);
+        intake = new Intake(hardwareMap, 0);   // no hand-off from AUTO yet: fix with gamepad2 dpad
         follower.setPose(startingPose());
         // Nothing moves in INIT: G403 forbids powered movement before TELEOP.
         telemetry.addData("Alliance", alliance);
@@ -83,6 +92,7 @@ public abstract class TeleopBase extends RobotOpMode {
     public void loop() {
         limelight.update();
         aimTurret();
+        runIntake();
 
         // driveOrHold latches the current pose when the sticks are released and
         // the robot has stopped, so defenders can't shove us off our spot. It
@@ -99,7 +109,18 @@ public abstract class TeleopBase extends RobotOpMode {
         telemetry.addData("tx", String.format(Locale.US, "%.1f deg", limelight.getTxDegrees()));
         telemetry.addData("Turret", String.format(Locale.US, "%.1f deg %s",
                 turret.getAngleDeg(), turret.isLockedOn() ? "LOCKED" : ""));
+        telemetry.addData("Intake", intake.state() + (intake.hasSensor() ? " balls " + intake.count() : " (no sensor)"));
         telemetry.update();
+    }
+
+    /** gamepad1 RT intakes, LT spits out; gamepad2 dpad up/down corrects the ball count. */
+    private void runIntake() {
+        if (gamepad2.dpad_up && !lastUp) intake.setCount(intake.count() + 1);
+        if (gamepad2.dpad_down && !lastDown) intake.setCount(intake.count() - 1);
+        lastUp = gamepad2.dpad_up;
+        lastDown = gamepad2.dpad_down;
+        intake.update(getRuntime(),
+                gamepad1.right_trigger > TRIGGER_ON, gamepad1.left_trigger > TRIGGER_ON);
     }
 
     /** Driver override on gamepad2 right stick X; auto-aim otherwise. */

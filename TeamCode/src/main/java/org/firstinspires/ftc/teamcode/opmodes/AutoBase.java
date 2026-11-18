@@ -5,6 +5,8 @@ import com.pedropathing.math.Pose;
 
 import org.firstinspires.ftc.teamcode.config.Alliance;
 import org.firstinspires.ftc.teamcode.robot.RobotOpMode;
+import org.firstinspires.ftc.teamcode.subsystems.BallCounter;
+import org.firstinspires.ftc.teamcode.subsystems.Intake;
 import org.firstinspires.ftc.teamcode.subsystems.LimelightSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.Shooter;
 import org.firstinspires.ftc.teamcode.subsystems.TurretSubsystem;
@@ -21,8 +23,8 @@ import java.util.Locale;
  * {@link Alliance#pose(Pose)}. <b>Every pose and time here is a guess until the
  * robot runs</b>; the ones marked MEASURE need the real field.
  * <p>
- * The feed, intake and wedge have no hardware yet: {@link #setFeed},
- * {@link #setIntake} and {@link #setWedge} are empty until they're wired.
+ * The feed and wedge have no hardware yet: {@link #setFeed} and
+ * {@link #setWedge} are empty until they're wired.
  * Never run on a robot.
  */
 public abstract class AutoBase extends RobotOpMode {
@@ -59,6 +61,8 @@ public abstract class AutoBase extends RobotOpMode {
     enum Step { DRIVE_TO_SHOOT, AIM, FIRE, DRIVE_TO_FLOWER, DROP_WEDGE, PULL_FLOWER, PARK, DONE }
 
     private Shooter shooter;
+    private Intake intake;
+    private boolean wantIntake = false;
     private TurretSubsystem turret;
     private LimelightSubsystem limelight;
 
@@ -74,6 +78,7 @@ public abstract class AutoBase extends RobotOpMode {
     public void init() {
         initSubsystems();
         shooter = new Shooter(hardwareMap);
+        intake = new Intake(hardwareMap, BallCounter.LIMIT);   // starts with 4 pre-loads
         turret = new TurretSubsystem(hardwareMap);
         limelight = new LimelightSubsystem(hardwareMap, alliance);
         follower.setPose(alliance.pose(START));
@@ -98,6 +103,7 @@ public abstract class AutoBase extends RobotOpMode {
         turret.aimAtTarget(limelight.getTxDegrees(), limelight.hasTarget());
         if (getRuntime() > PARK_BY_SEC && step.ordinal() < Step.PARK.ordinal()) park();
         runStep(getRuntime() - stepStart);
+        intake.update(getRuntime(), wantIntake, false);
         follower.update();
 
         telemetry.addData("Step", step);
@@ -106,6 +112,7 @@ public abstract class AutoBase extends RobotOpMode {
         telemetry.addData("Flywheel", String.format(Locale.US, "%.0f / %.0f rpm %s",
                 shooter.getRpm(), SHOT_RPM, shooter.atSpeed() ? "READY" : ""));
         telemetry.addData("Turret", turret.isLockedOn() ? "LOCKED" : "searching");
+        telemetry.addData("Intake", intake.state() + (intake.hasSensor() ? " balls " + intake.count() : " (no sensor)"));
         telemetry.update();
     }
 
@@ -124,6 +131,7 @@ public abstract class AutoBase extends RobotOpMode {
             case FIRE:
                 if (t < FIRE_SEC) break;
                 setFeed(false);
+                intake.setCount(0);   // time-based volley: assume it emptied
                 volleys++;
                 // The robot now holds 0, so the wedge may tip a full stack in (G407, TU05).
                 if (volleys == 1) driveTo(FLOWER_APPROACH, Step.DRIVE_TO_FLOWER);
@@ -175,8 +183,10 @@ public abstract class AutoBase extends RobotOpMode {
     /** TODO: run the column drive into the flywheel. No hardware name yet. */
     protected void setFeed(boolean on) { }
 
-    /** TODO: intake roller. No hardware name yet. */
-    protected void setIntake(boolean on) { }
+    /** Intake roller; stops itself at 4 balls and reverses out of jams ({@link Intake}). */
+    protected void setIntake(boolean on) {
+        wantIntake = on;
+    }
 
     /** TODO: FLOWER wedge servo, down = true. No hardware name yet. */
     protected void setWedge(boolean down) { }
