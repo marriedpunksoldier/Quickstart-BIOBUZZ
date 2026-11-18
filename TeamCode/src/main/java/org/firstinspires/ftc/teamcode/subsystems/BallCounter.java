@@ -1,20 +1,17 @@
 package org.firstinspires.ftc.teamcode.subsystems;
 
 /**
- * Counts balls aboard from one distance sensor at the intake mouth: each ball
- * passing it adds one, or takes one away if the roller is running backwards.
- * Shots don't come off automatically yet: call {@link #set} after a volley, and
- * the drivers fix miscounts by hand. No SDK types, so it runs on a plain JVM.
+ * Counts balls aboard from the mouth sensor (goBILDA 3124-0001-0001 laser
+ * distance sensor in digital mode, under the ramp just past the roller): each
+ * ball passing it adds one, or takes one away if the roller is running
+ * backwards. Shots don't come off automatically yet: call {@link #set} after a
+ * volley or a FLOWER pull (4 at once, touching, so the sensor can't split them),
+ * and the drivers fix miscounts by hand. No SDK types, so it runs on a plain JVM.
  */
 public class BallCounter {
 
     /** Robots may hold up to 4; repeated 5+ is likely STRATEGIC (TU05). */
     public static final int LIMIT = 4;
-
-    /** A ball is in front of the sensor under this distance... (MEASURE on the robot) */
-    static final double BALL_CM = 5.0;
-    /** ...and gone again over this one. The gap stops one ball counting twice. */
-    static final double CLEAR_CM = 7.0;
 
     private int count;
     private boolean seen = false;
@@ -23,15 +20,13 @@ public class BallCounter {
         count = Math.max(0, start);
     }
 
-    /** Call every loop with the sensor reading and whether the roller is running backwards. */
-    public void update(double distanceCm, boolean reversing) {
-        boolean now = seesBall(seen, distanceCm);
-        if (now && !seen) count = Math.max(0, count + (reversing ? -1 : 1));
-        seen = now;
-    }
-
-    static boolean seesBall(boolean wasSeen, double distanceCm) {
-        return distanceCm < (wasSeen ? CLEAR_CM : BALL_CM);
+    /**
+     * Call every loop. {@code ballAtSensor} is the sensor's digital output: its
+     * own pot sets the trigger distance, so there's no threshold here.
+     */
+    public void update(boolean ballAtSensor, boolean reversing) {
+        if (ballAtSensor && !seen) count = Math.max(0, count + (reversing ? -1 : 1));
+        seen = ballAtSensor;
     }
 
     public void set(int n) {

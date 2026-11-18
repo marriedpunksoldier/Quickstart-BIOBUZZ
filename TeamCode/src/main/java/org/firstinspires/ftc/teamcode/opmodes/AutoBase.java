@@ -151,6 +151,8 @@ public abstract class AutoBase extends RobotOpMode {
                 if (arrived && t > PULL_SEC) {
                     setWedge(false);
                     setIntake(false);
+                    // The wedge tips 4 in touching, which the mouth sensor can't split.
+                    intake.setCount(BallCounter.LIMIT);
                     driveTo(SHOOT, Step.DRIVE_TO_SHOOT);
                 }
                 break;
